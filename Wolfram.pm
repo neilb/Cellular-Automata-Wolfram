@@ -7,13 +7,19 @@ use GD;
 use Carp;
 use Math::BaseCalc;
 use Graphics::ColorNames 'hex2tuple';
+use Class::MethodMaker
+    new_with_init => 'new',
+    get_set => [qw(rule rules colors radius width num_of_gens first_gen 
+random gens window draw_file)];
+
+use constant INSTANCE_DEFAULTS => (rule=>110,radius=>1,width=>80,num_of_gens=>100,random=>"",colors=>['white','black'],draw_file=>'wolfram.png');
 
 require Exporter;
 require DynaLoader;
 require GD;
 require Carp;
 require Math::BaseCalc;
-require Graphics::Colornames;
+require Graphics::ColorNames;
 
 use AutoLoader qw(AUTOLOAD);
 
@@ -35,13 +41,14 @@ our @EXPORT_OK = ( @{ $EXPORT_TAGS{'all'} } );
 our @EXPORT = qw(
 	
 );
-our $VERSION = '1.0';
+our $VERSION = '1.1';
 
 bootstrap Cellular::Automata::Wolfram $VERSION;
 
 # Preloaded methods go here.
 
 # Autoload methods go after =cut, and are processed by the autosplit program.
+
 sub init {
     my($self) = shift;
     my %values = (INSTANCE_DEFAULTS,@_);
@@ -60,7 +67,7 @@ $self->get_rules($values{rule},$values{colors},$values{radius});
         $self->$key($values{$key});
     } # foreach
     my $temp = $self->first_gen();
-    if($self->gens() eq undef) {
+    if(!defined($self->gens())) {
         $self->generate();
     } # if
     return $self;
@@ -74,6 +81,7 @@ sub draw {
     else {
         $draw_file = $self->draw_file();
     } # else
+    my %COLORS;
     tie %COLORS, 'Graphics::ColorNames';
     my $width = $self->width();
     my $num_of_gens = $self->num_of_gens();
@@ -94,13 +102,12 @@ $im->colorAllocate(hex2tuple($COLORS{$color}));
             croak("Cannot find:" . $color . "in Graphics::ColorNames\n");
         } # else
     } # foreach
+    $self->generate();
     my $gens = $self->gens();
     my $gen;
-    my $width = $self->width();
-    my $num_of_gens = $self->num_of_gens();
     my @lines;
     my $png_info;
-    for($i=0;$i<=@{$gens};$i++) {
+    for($i=0;$i<@{$gens};$i++) {
         @lines = split(//,$gens->[$i]);
         for($j=0;$j<=$#lines;$j++) {
             $im->setPixel($j,$i,$color2tuple{$colors->[$lines[$j]]});
@@ -109,7 +116,7 @@ $im->colorAllocate(hex2tuple($COLORS{$color}));
     binmode $outfile;
     $png_info = $im->png;
     print $outfile $png_info;
-    close(outfile);
+    close($outfile);
 } # sub draw
 
 
@@ -164,6 +171,7 @@ sub generate {
     my($self) = @_;
     my $num_of_gens = $self->num_of_gens();
     my $curr_gen;
+    my $i;
     if($self->random()) {
         $curr_gen = 
 $self->set_first_gen($self->colors(),$self->width(),$self->random());
